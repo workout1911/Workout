@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Workout" />
+  <title>Today's Workout</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 60px 16px 40px;
+    }
+    .header { text-align: center; margin-bottom: 20px; }
+    .header h1 { font-size: 26px; font-weight: 700; color: #111; letter-spacing: -0.5px; }
+    .header .date { font-size: 13px; color: #888; margin-top: 4px; }
+    .progress-track {
+      height: 6px; background: #e0e0e0; border-radius: 8px;
+      margin-bottom: 6px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: #1D9E75; border-radius: 8px;
+      transition: width 0.3s ease; width: 0%;
+    }
+    .progress-label { font-size: 12px; color: #888; text-align: center; margin-bottom: 16px; }
+    .saved-tag { font-size: 11px; color: #1D9E75; text-align: center; margin-bottom: 8px; min-height: 16px; }
+    .banner {
+      background: #E1F5EE; border: 0.5px solid #5DCAA5;
+      border-radius: 14px; padding: 14px 16px;
+      margin-bottom: 16px; text-align: center;
+      display: none;
+    }
+    .banner p { color: #085041; font-weight: 600; font-size: 15px; }
+    .card {
+      background: #fff; border-radius: 20px;
+      border: 0.5px solid #e0e0e0;
+      padding: 18px 20px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .card.done { background: #E1F5EE; border-color: #1D9E75; }
+    .card-info { flex: 1; }
+    .card-name { font-size: 17px; font-weight: 600; color: #111; }
+    .card-sub { font-size: 13px; color: #888; margin-top: 3px; }
+    .card-sub.done-text { color: #0F6E56; font-weight: 500; }
+    .counter { display: flex; align-items: center; gap: 10px; }
+    .count { font-size: 28px; font-weight: 700; color: #111; min-width: 40px; text-align: center; }
+    .count.done-num { color: #0F6E56; }
+    .btn {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      cursor: pointer; font-size: 22px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.88); }
+    .btn-minus { background: #f0f0f0; color: #555; }
+    .btn-minus:disabled { opacity: 0.3; }
+    .btn-plus { background: #1D9E75; color: #fff; }
+    .btn-plus:disabled { background: #9FE1CB; }
+    .reset-wrap { text-align: center; margin-top: 8px; }
+    .reset-btn {
+      background: none; border: 0.5px solid #ccc;
+      border-radius: 20px; padding: 9px 28px;
+      font-size: 14px; color: #888; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .reset-btn:active { background: #eee; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Today's Workout</h1>
+      <div class="date" id="dateLabel"></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
+    <div class="progress-label" id="progressLabel">0 / 110 reps</div>
+    <div class="saved-tag" id="savedTag"></div>
+    <div class="banner" id="banner"><p>🏆 Workout complete! Great work.</p></div>
+    <div id="cards"></div>
+    <div class="reset-wrap">
+      <button class="reset-btn" onclick="resetAll()">Reset day</button>
+    </div>
+  </div>
+
+  <script>
+    const EXERCISES = [
+      { id: 'squats',  name: 'Squats',   goal: 50 },
+      { id: 'pushups', name: 'Push-ups', goal: 50 },
+      { id: 'pullups', name: 'Pull-ups', goal: 10 },
+    ];
+    const TOTAL = EXERCISES.reduce((a, e) => a + e.goal, 0);
+    const TODAY = new Date().toDateString();
+    const STORE_KEY = 'workout_' + TODAY;
+
+    let state = { squats: 0, pushups: 0, pullups: 0 };
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          state = JSON.parse(raw);
+          document.getElementById('savedTag').textContent = '● counts saved from earlier today';
+        }
+      } catch(e) {}
+    }
+
+    function save() {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        const tag = document.getElementById('savedTag');
+        tag.textContent = '● saved';
+        setTimeout(() => { tag.textContent = ''; }, 1500);
+      } catch(e) {}
+    }
+
+    function adjust(id, delta) {
+      const ex = EXERCISES.find(e => e.id === id);
+      state[id] = Math.max(0, Math.min(ex.goal, state[id] + delta));
+      save();
+      render();
+    }
+
+    function resetAll() {
+      if (!confirm('Reset all counts for today?')) return;
+      state = { squats: 0, pushups: 0, pullups: 0 };
+      save();
+      render();
+    }
+
+    function render() {
+      const container = document.getElementById('cards');
+      container.innerHTML = '';
+      let doneTotal = 0;
+
+      EXERCISES.forEach(ex => {
+        const val = state[ex.id];
+        const done = val >= ex.goal;
+        doneTotal += Math.min(val, ex.goal);
+
+        const card = document.createElement('div');
+        card.className = 'card' + (done ? ' done' : '');
+        card.innerHTML = `
+          <div class="card-info">
+            <div class="card-name">${ex.name}</div>
+            <div class="card-sub ${done ? 'done-text' : ''}">${done ? '✓ Complete' : 'Goal: ' + ex.goal + ' reps'}</div>
+          </div>
+          <div class="counter">
+            <button class="btn btn-minus" onclick="adjust('${ex.id}',-1)" ${val===0?'disabled':''}>−</button>
+            <div class="count ${done ? 'done-num' : ''}">${val}</div>
+            <button class="btn btn-plus" onclick="adjust('${ex.id}',1)" ${done?'disabled':''}>+</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const pct = Math.round((doneTotal / TOTAL) * 100);
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressLabel').textContent = doneTotal + ' / ' + TOTAL + ' reps';
+      document.getElementById('banner').style.display = doneTotal >= TOTAL ? 'block' : 'none';
+    }
+
+    document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long'
+    });
+
+    load();
+    render();
+  </script>
+</body>
+</html>
