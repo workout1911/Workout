@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Workout" />
+  <title>Today's Workout</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .container { max-width: 400px; margin: 0 auto; padding: 50px 16px 40px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .header h1 { font-size: 26px; font-weight: 700; color: #111; letter-spacing: -0.5px; }
+    .header .date { font-size: 13px; color: #888; margin-top: 4px; }
+    .progress-track { height: 6px; background: #e0e0e0; border-radius: 8px; margin-bottom: 6px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #1D9E75; border-radius: 8px; transition: width 0.3s ease; width: 0%; }
+    .progress-label { font-size: 12px; color: #888; text-align: center; margin-bottom: 16px; }
+    .saved-tag { font-size: 11px; color: #1D9E75; text-align: center; margin-bottom: 8px; min-height: 16px; }
+    .banner { background: #E1F5EE; border: 0.5px solid #5DCAA5; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; text-align: center; display: none; }
+    .banner p { color: #085041; font-weight: 600; font-size: 15px; }
+    .card { background: #fff; border-radius: 20px; border: 0.5px solid #e0e0e0; padding: 18px 20px; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; }
+    .card.done { background: #E1F5EE; border-color: #1D9E75; }
+    .card-info { flex: 1; }
+    .card-name { font-size: 17px; font-weight: 600; color: #111; }
+    .card-sub { font-size: 13px; color: #888; margin-top: 3px; }
+    .card-sub.done-text { color: #0F6E56; font-weight: 500; }
+    .counter { display: flex; align-items: center; gap: 10px; }
+    .count { font-size: 28px; font-weight: 700; color: #111; min-width: 40px; text-align: center; }
+    .count.done-num { color: #0F6E56; }
+    .btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; font-size: 22px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; }
+    .btn:active { transform: scale(0.88); }
+    .btn-minus { background: #f0f0f0; color: #555; }
+    .btn-minus:disabled { opacity: 0.3; }
+    .btn-plus { background: #1D9E75; color: #fff; }
+    .btn-plus:disabled { background: #9FE1CB; }
+    .reset-wrap { text-align: center; margin-top: 8px; margin-bottom: 32px; }
+    .reset-btn { background: none; border: 0.5px solid #ccc; border-radius: 20px; padding: 9px 28px; font-size: 14px; color: #888; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .reset-btn:active { background: #eee; }
+
+    /* NO REST DAYS popup */
+    .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .popup-overlay.show { opacity: 1; pointer-events: all; }
+    .popup-box { background: #111; border-radius: 24px; padding: 36px 28px; text-align: center; max-width: 300px; transform: scale(0.85); transition: transform 0.2s; }
+    .popup-overlay.show .popup-box { transform: scale(1); }
+    .popup-box .popup-icon { font-size: 48px; margin-bottom: 12px; }
+    .popup-box h2 { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.5px; margin-bottom: 8px; }
+    .popup-box p { font-size: 14px; color: #aaa; margin-bottom: 24px; }
+    .popup-close { background: #1D9E75; color: #fff; border: none; border-radius: 14px; padding: 12px 32px; font-size: 16px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+    /* Calendar */
+    .cal-section { margin-top: 8px; }
+    .cal-title { font-size: 16px; font-weight: 600; color: #111; margin-bottom: 12px; text-align: center; }
+    .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cal-nav button { background: none; border: 0.5px solid #ddd; border-radius: 10px; padding: 6px 14px; font-size: 18px; cursor: pointer; color: #555; -webkit-tap-highlight-color: transparent; }
+    .cal-month { font-size: 15px; font-weight: 600; color: #111; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day-label { font-size: 11px; color: #aaa; text-align: center; padding-bottom: 4px; font-weight: 500; }
+    .cal-cell { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: #111; background: #fff; border: 0.5px solid #e8e8e8; }
+    .cal-cell.empty { background: transparent; border-color: transparent; }
+    .cal-cell.today { border: 2px solid #1D9E75; font-weight: 700; }
+    .cal-cell.green { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+    .cal-cell.red { background: #E24B4A; color: #fff; border-color: #E24B4A; }
+    .cal-cell.future { color: #ccc; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Today's Workout</h1>
+      <div class="date" id="dateLabel"></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
+    <div class="progress-label" id="progressLabel">0 / 160 reps</div>
+    <div class="saved-tag" id="savedTag"></div>
+    <div class="banner" id="banner"><p>🏆 Workout complete! Great work.</p></div>
+    <div id="cards"></div>
+    <div class="reset-wrap">
+      <button class="reset-btn" onclick="tryReset()">Reset day</button>
+    </div>
+
+    <div class="cal-section">
+      <div class="cal-title">Your History</div>
+      <div class="cal-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <div class="cal-month" id="calMonth"></div>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+  </div>
+
+  <!-- NO REST DAYS popup -->
+  <div class="popup-overlay" id="popupOverlay" onclick="closePopup()">
+    <div class="popup-box" onclick="event.stopPropagation()">
+      <div class="popup-icon">💀</div>
+      <h2>NO REST DAYS!!!</h2>
+      <p>Get back to work.</p>
+      <button class="popup-close" onclick="closePopup()">Let's GO 💪</button>
+    </div>
+  </div>
+
+  <script>
+    const EXERCISES = [
+      { id: 'squats',  name: 'Squats',   goal: 50 },
+      { id: 'pushups', name: 'Push-ups', goal: 100 },
+      { id: 'pullups', name: 'Pull-ups', goal: 10 },
+    ];
+    const TOTAL = EXERCISES.reduce((a, e) => a + e.goal, 0);
+    const TODAY = new Date().toDateString();
+    const STORE_KEY = 'workout_' + TODAY;
+
+    let state = { squats: 0, pushups: 0, pullups: 0 };
+    let calYear = new Date().getFullYear();
+    let calMonth = new Date().getMonth();
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          state = JSON.parse(raw);
+          document.getElementById('savedTag').textContent = '● counts saved from earlier today';
+        }
+      } catch(e) {}
+    }
+
+    function save() {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        // Save daily completion record
+        const total = EXERCISES.reduce((a, e) => a + e.goal, 0);
+        const done = EXERCISES.reduce((a, e) => a + Math.min(state[e.id], e.goal), 0);
+        const histKey = 'hist_' + TODAY;
+        localStorage.setItem(histKey, JSON.stringify({ done, total, complete: done >= total }));
+        const tag = document.getElementById('savedTag');
+        tag.textContent = '● saved';
+        setTimeout(() => { tag.textContent = ''; }, 1500);
+      } catch(e) {}
+    }
+
+    function adjust(id, delta) {
+      const ex = EXERCISES.find(e => e.id === id);
+      state[id] = Math.max(0, Math.min(ex.goal, state[id] + delta));
+      save();
+      render();
+      renderCal();
+    }
+
+    function tryReset() {
+      document.getElementById('popupOverlay').classList.add('show');
+    }
+
+    function closePopup() {
+      document.getElementById('popupOverlay').classList.remove('show');
+    }
+
+    function render() {
+      const container = document.getElementById('cards');
+      container.innerHTML = '';
+      let doneTotal = 0;
+      EXERCISES.forEach(ex => {
+        const val = state[ex.id];
+        const done = val >= ex.goal;
+        doneTotal += Math.min(val, ex.goal);
+        const card = document.createElement('div');
+        card.className = 'card' + (done ? ' done' : '');
+        card.innerHTML = `
+          <div class="card-info">
+            <div class="card-name">${ex.name}</div>
+            <div class="card-sub ${done ? 'done-text' : ''}">${done ? '✓ Complete' : 'Goal: ' + ex.goal + ' reps'}</div>
+          </div>
+          <div class="counter">
+            <button class="btn btn-minus" onclick="adjust('${ex.id}',-1)" ${val===0?'disabled':''}>−</button>
+            <div class="count ${done ? 'done-num' : ''}">${val}</div>
+            <button class="btn btn-plus" onclick="adjust('${ex.id}',1)" ${done?'disabled':''}>+</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      const pct = Math.round((doneTotal / TOTAL) * 100);
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressLabel').textContent = doneTotal + ' / ' + TOTAL + ' reps';
+      document.getElementById('banner').style.display = doneTotal >= TOTAL ? 'block' : 'none';
+    }
+
+    function changeMonth(delta) {
+      calMonth += delta;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      renderCal();
+    }
+
+    function renderCal() {
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      document.getElementById('calMonth').textContent = monthNames[calMonth] + ' ' + calYear;
+      const grid = document.getElementById('calGrid');
+      grid.innerHTML = '';
+      const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+      days.forEach(d => {
+        const el = document.createElement('div');
+        el.className = 'cal-day-label';
+        el.textContent = d;
+        grid.appendChild(el);
+      });
+      const firstDay = new Date(calYear, calMonth, 1).getDay();
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const todayDate = new Date();
+      for (let i = 0; i < firstDay; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-cell empty';
+        grid.appendChild(el);
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const el = document.createElement('div');
+        const cellDate = new Date(calYear, calMonth, d);
+        const cellKey = 'hist_' + cellDate.toDateString();
+        const isFuture = cellDate > todayDate && cellDate.toDateString() !== todayDate.toDateString();
+        const isToday = cellDate.toDateString() === todayDate.toDateString();
+        let cls = 'cal-cell';
+        if (isFuture) {
+          cls += ' future';
+        } else {
+          const rec = localStorage.getItem(cellKey);
+          if (rec) {
+            const data = JSON.parse(rec);
+            cls += data.complete ? ' green' : ' red';
+          } else if (!isToday) {
+            cls += ' red';
+          }
+        }
+        if (isToday) cls += ' today';
+        el.className = cls;
+        el.textContent = d;
+        grid.appendChild(el);
+      }
+    }
+
+    document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    load();
+    render();
+    renderCal();
+  </script>
+</body>
+</html>
